@@ -2,11 +2,12 @@ import http.cookiejar
 import json
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from http import HTTPStatus
 from teletext.page import *
 
-API_URL = "https://hbbtv.ceskatelevize.cz/teletext-v2/services/php/api.php?"
+from collections import namedtuple
 
 class FetchError(Exception):
     pass
@@ -96,7 +97,7 @@ class WebApiTeletextClient:
         
         # Fetch the data if we don't have it yet or data expired
         expiry_time = self.fetch_time + self.CACHE_TTL
-        if self.data is None or expiry_time > time.time():
+        if self.data is None or time.time() > expiry_time:
             self._fetch_data()
         
         # We have valid data but page does not exist
@@ -122,10 +123,179 @@ class WebApiTeletextClient:
             pass
         
         return teletext_page
-    
+
+CacheKey = namedtuple("CacheKey", ["page", "subpage"])
+CacheItem = namedtuple("CacheItem", ["timestamp", "teletext_page"])
+
 class HbbtvApiTeletextClient:
-    pass
+    API_URL = "https://hbbtv.ceskatelevize.cz/teletext-v2/services/php/api.php?"
+    CACHE_TTL = 300 # Cache time-to-live in seconds
+    REQUEST_HEADERS = {"Accept": "application/json"}
+    MAIN_MENU_ATTRIBUTES = {
+        "c": "default",
+        "n": "101",
+        "p": "0",
+        "pg": "100",
+        "ps": "0",
+        "s": "1",
+        "st": "1",
+        "t": "list",
+        "menuPageNumber": 100,
+    }
+    def __init__(self):
+        self.content_cache = {}
+        self.error_cache = {}
+    
+    def _fetch_mainmenu(self):
+        menu_url = self.API_URL + "query=mainmenu"
+        request = urllib.request.Request(menu_url, headers=self.REQUEST_HEADERS)
+        with urllib.request.urlopen(request) as response:
+            decoded_response = json.load(response)
+        if not isinstance(decoded_response, list):
+            raise TypeError("list expected in hbbtv menu response")
+        
+        # Itemize menu items
+        items = [{
+            "type": "item",
+            "name": main_menu_entry["title"],
+            "title": main_menu_entry["title"],
+            "page": main_menu_entry["page"],
+            "basePage": "100",
+        } for main_menu_entry in decoded_response]
+        
+        mainmenu = {
+            "attributes": self.MAIN_MENU_ATTRIBUTES,
+            "content": {"head": "TELETEXT ČT", "pages": ["100"], "items": items}
+        }
+        return mainmenu
+        
+    def _fetch_normal_page(self, page, subpage):
+        query_string = urllib.parse.urlencode({
+            "query": "onepage",
+            "page": str(page),
+            "subpage": str(subpage),
+        })
+        url = self.API_URL + query_string
+        request = urllib.request.Request(url, headers=self.REQUEST_HEADERS)
+        with urllib.request.urlopen(request) as response:
+            decoded_response = json.load(response)
+        return decoded_response
+        
+    def _process_response_data(self, page, subpage, response_data):
+        teletext_page = TeletextPage(page)
+        teletext_page.current_sub_page = subpage
+        teletext_page.sub_pages_count = int(response_data["attributes"]["st"])
+        prev_page = response_data["attributes"]["p"]
+        if prev_page != "0":
+            teletext_page.prev_page_link = TeletextLink(prev_page)
+        next_page = response_data["attributes"]["n"]
+        if next_page != "999":
+            teletext_page.next_page_link = TeletextLink(next_page)
+        page_type = response_data["attributes"]["t"]
+        teletext_page.page_type = page_type
+        if page_type in ("message", "table"):
+            for content_item in response_data["content"]:
+                name = content_item["name"]
+                if name == "head":
+                    teletext_page.head = content_item["text"]
+                elif name == "text":
+                    teletext_page.content = content_item["text"]
+        elif page_type == "list":
+            content = response_data["content"]
+            teletext_page.head = content["head"]
+            if "pages" in content:
+                content["pages"] = [str(page) for page in content["pages"]]
+            else:
+                content["pages"] = str(page)
+            teletext_page.content = content
+        else:
+            raise ValueError("Unknown page type")
+        return teletext_page
+        
+        
+    def _fetch_page(self, page, subpage):
+        if page == "100":
+            response_data = self._fetch_mainmenu()
+        else:
+            response_data = self._fetch_normal_page(page, subpage)
+        teletext_page = self._process_response_data(page, subpage, response_data)
+        return teletext_page
+
+    
+    def get_page(self, page, subpage):
+        if page == "100":
+            subpage = 1
+        cache_key = CacheKey(page, subpage)
+        timestamp = None
+        teletext_page = None
+        try:
+            timestamp, teletext_page = self.content_cache[cache_key]
+        except KeyError:
+            pass
+        if timestamp == None:
+            try:
+                error_timestamp, _ = self.error_cache[cache_key]
+                if time.time() < CACHE_TTL + error_timestamp:
+                    return None
+            except KeyError:
+                pass
+        expiry = time.time() + self.CACHE_TTL
+        if timestamp and timestamp < expiry:
+            return teletext_page
+        try:
+            teletext_page = self._fetch_page(page, subpage)
+        except Exception as e:
+            if len(self.error_cache) > 1000:
+                self.error_cache.clear()
+            self.error_cache[CacheKey(page, subpage)] = CacheItem(time.time(), None)
+            raise FetchError() from e
+        self.content_cache[cache_key] = CacheItem(time.time(), teletext_page)
+        return teletext_page
 
 class CombinedTeletextClient:
-    pass
+    def __init__(self):
+        self.web_api_client = WebApiTeletextClient()
+        self.hbbtv_api_client = HbbtvApiTeletextClient()
+    
+    def _combine_teletext_pages(self, web_api_page, hbbtv_api_page):
+        if hbbtv_api_page == None or hbbtv_api_page.current_sub_page == None:
+            return web_api_page
+        if web_api_page == None or web_api_page.current_sub_page == None:
+            return hbbtv_api_page
         
+        teletext_page = TeletextPage(
+            current_page=web_api_page.current_page,
+            page_type=hbbtv_api_page.page_type,
+            content=hbbtv_api_page.content,
+            sub_pages_count=web_api_page.sub_pages_count,
+            current_sub_page=web_api_page.current_sub_page,
+            head=hbbtv_api_page.head,
+            next_page_link=web_api_page.next_page_link,
+            prev_page_link=web_api_page.prev_page_link,
+            plaintext=web_api_page.plaintext
+        )
+        return teletext_page
+        
+    def get_page(self, page, subpage):
+        """Try to retrieve the page both from HbbTV api and web api"""
+        web_api_failed = False
+        web_api_page = None
+        hbbtv_api_page = None
+        try:
+            web_api_page = self.web_api_client.get_page(page, subpage)
+            # Web api has accurate index of all pages,
+            # so it knows if the page does not exist
+            if web_api_page == None or web_api_page.current_sub_page == None:
+                return web_api_page
+        except FetchError:
+            web_api_failed = True
+        
+        try:
+            hbbtv_api_page = self.hbbtv_api_client.get_page(page, subpage)
+        except FetchError:
+            hbbtv_api_failed = True
+        
+        if web_api_failed and hbbtv_api_failed:
+            raise FetchError()
+        
+        return self._combine_teletext_pages(web_api_page, hbbtv_api_page)

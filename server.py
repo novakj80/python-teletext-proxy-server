@@ -46,7 +46,7 @@ def parse_quality_header_syntax(header):
     return result
 
 class TeletextProxyHandler(http.server.BaseHTTPRequestHandler):
-    server_version = "TeletextProxy/0.1"
+    server_version = "TeletextProxy/0.2"
     
     def choose_renderer_plugin(self, headers, suffix, accepted_media_types):
         for document_renderer in self.server.renderer_plugins:
@@ -199,7 +199,7 @@ class TeletextProxyHandler(http.server.BaseHTTPRequestHandler):
 
 class TeletextProxyHTTPServer(http.server.ThreadingHTTPServer):
     def __init__(self, server_address, RequestHandlerClass):
-        self.teletext_client = teletext.ceskatelevize.WebApiTeletextClient()
+        self.teletext_client = teletext.ceskatelevize.CombinedTeletextClient()
         self._load_renderer_plugins()
         super().__init__(server_address, RequestHandlerClass)
     
