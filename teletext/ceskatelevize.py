@@ -4,7 +4,7 @@ import time
 import urllib.error
 import urllib.request
 from http import HTTPStatus
-from .page import *
+from teletext.page import *
 
 API_URL = "https://hbbtv.ceskatelevize.cz/teletext-v2/services/php/api.php?"
 
