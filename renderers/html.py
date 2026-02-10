@@ -57,12 +57,14 @@ class HTMLTemplate:
         return href
     def render_list_items(self, file, items):
         for link in items:
-            if "page" in link and link["basePage"] == self.teletext_page.current_page:
-                linked_pages = link["page"]
-                first_page = linked_pages[:3]
-                anchor_element = f'<a href="{self.page_href(first_page, "1")}">{link["title"]}</a>'
-                file.write(anchor_element)
-                file.write("<br>")
+            if "page" in link:
+                if link.get("expandable", False) or link.get("basePage", "") == self.teletext_page.current_page:
+                    linked_pages = link["page"]
+                    first_page = linked_pages[:3]
+                    anchor_element = f'<a href="{self.page_href(first_page, "1")}">{link["title"]}</a>'
+                    file.write(anchor_element)
+                    file.write("<br>")
+
             if "items" in link:
                 self.render_list_items(file, link["items"])
     def render_navigation(self, file):
