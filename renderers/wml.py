@@ -6,6 +6,9 @@ WML_HEADER = """<?xml version="1.0"?>
 <!DOCTYPE wml PUBLIC "-//WAPFORUM//DTD WML 1.3//EN" "http://www.wapforum.org/DTD/wml113.dtd">
 """
 
+def detect_wap_device(headers):
+    return ("text/vnd.wap.wml" in headers.get("Accept") or "x-wap-profile" in headers)
+
 class WMLTemplate:
     def __init__(self, teletext_page, url_suffix, query, request_headers, config):
         self.teletext_page = teletext_page

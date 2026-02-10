@@ -5,6 +5,12 @@ from . import DocumentRendererABC
 
 HTML_DOCTYPE_DECLARATION = '<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN""http://www.w3.org/TR/html4/strict.dtd">\n'
 
+try:
+    from renderers.wml import detect_wap_device
+except ImportError:
+    def detect_wap_device(headers):
+        return False
+
 class HTMLTemplate:
     def __init__(self, teletext_page, url_suffix, query, request_headers, config):
         self.teletext_page = teletext_page
@@ -95,7 +101,7 @@ class HTMLTemplate:
         form = f'<form method="get" action="{self.config["PAGE_URL_BASE"]}{suffix}">'
         file.write(form)
         file.write('<label for="page_input">Přejít na stránku:</label><input name="stranka" id="page_input"></input><input type="submit" value="Přejít" />')
-        file.write("</form>")
+        file.write("</form><br/>")
         
 class HTMLTeletextPageTemplate(HTMLTemplate):
     def render_title(self, file):
@@ -116,6 +122,10 @@ class HTMLMenuPageTemplate(HTMLTemplate):
     def render_body(self, file):
         self.render_page_content(file)
         self.render_page_input_field(file)
+        self.render_format_switchers(file)
+    def render_format_switchers(self, file):
+        if detect_wap_device(self.request_headers) == True:
+            file.write('<a href=".wml">Přepnout na WAP verzi</a><br/>')
         
 class HTMLRenderer(DocumentRendererABC):
     @property
