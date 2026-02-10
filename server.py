@@ -58,25 +58,32 @@ class TeletextProxyHandler(http.server.BaseHTTPRequestHandler):
         try:
             path, query = self.process_request_target(self.path)
             
-            # Internal redirects
-            # If more redirects were to be added,
-            # it would be better to use a dictionary
+            # Static resource internal redirect
             if path == "/favicon.ico":
                 path = "/assets/favicon.ico"
-            elif path == "/": 
+            
+            # Handle static resource paths
+            if path.startswith(CONFIG["STATIC_ASSETS_URL_BASE"]):
+                self.serve_static_asset(path)
+                return
+            
+            # Handle teletext page paths
+            path, _, suffix = path.partition(".")
+            
+            if path == "/": 
                 path = "/menu"
             elif "stranka" not in query and path.rstrip("/") == CONFIG["PAGE_URL_BASE"].rstrip("/"):
                 path = "/menu"
             
-            # Route request
-            if path.startswith(CONFIG["STATIC_ASSETS_URL_BASE"]):
-                self.serve_static_asset(path)
-            elif path.rstrip("/") == "/menu":
-                self.serve_teletext_menu(path, query)
-            elif path.startswith(CONFIG["PAGE_URL_BASE"]):
-                self.serve_teletext_page(path, query)
-            else:
-                self.send_error(HTTPStatus.NOT_FOUND)
+            if path.rstrip("/") == "/menu":
+                self.serve_teletext_menu(path, suffix, query)
+                return
+            if path.startswith(CONFIG["PAGE_URL_BASE"]):
+                self.serve_teletext_page(path, suffix, query)
+                return
+            
+            # None route matched
+            self.send_error(HTTPStatus.NOT_FOUND)
         
         except Exception as e:
             self.send_error(HTTPStatus.INTERNAL_SERVER_ERROR)
@@ -102,7 +109,7 @@ class TeletextProxyHandler(http.server.BaseHTTPRequestHandler):
         return path, query
     
         
-    def serve_teletext_menu(self, path, query):
+    def serve_teletext_menu(self, path, suffix, query):
         try:
             menu_page = self.server.teletext_client.get_page("100", 1)
         except teletext.ceskatelevize.FetchError:
@@ -110,7 +117,6 @@ class TeletextProxyHandler(http.server.BaseHTTPRequestHandler):
             return
         
         # Choose document renderer
-        _, _, suffix = path.partition(".")
         parsed_accept_header = parse_quality_header_syntax(self.headers.get("Accept"))
         document_renderer = self.choose_renderer_plugin(self.headers, suffix, parsed_accept_header)
         
@@ -121,7 +127,7 @@ class TeletextProxyHandler(http.server.BaseHTTPRequestHandler):
             return
         self.send_binary_data(data, response_headers, status_code)     
         
-    def serve_teletext_page(self, path, query):
+    def serve_teletext_page(self, path, suffix, query):
         # Parse page and subpage
         stripped_path = path[len(CONFIG["PAGE_URL_BASE"]):] # Strip URL base
         path_components = stripped_path.split("/")
@@ -130,9 +136,8 @@ class TeletextProxyHandler(http.server.BaseHTTPRequestHandler):
             return
         elif len(path_components) == 2:
             page, subpage = path_components
-            subpage, _, suffix = subpage.partition(".")
         else:
-            page, _, suffix = path_components[0].partition(".")
+            page = path_components[0]
             subpage = 1
         if "stranka" in query:
             page = query["stranka"][0]

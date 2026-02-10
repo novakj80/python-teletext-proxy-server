@@ -33,4 +33,4 @@ class DocumentRendererABC(metaclass=abc.ABCMeta):
         pass
     
     def render_teletext_menu(self, page, url_suffix, query, request_headers, config):
-        return self.render_teletext_page()
+        return self.render_teletext_page(page, url_suffix, query, request_headers, config)

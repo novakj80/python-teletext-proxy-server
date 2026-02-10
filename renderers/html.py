@@ -89,7 +89,8 @@ class HTMLTemplate:
             anchor_element = f'<a href="{self.page_href(self.teletext_page.next_page_link.page, "1")}">Následující stránka</a><br>'
             file.write(anchor_element)
     def render_page_input_field(self, file):
-        form = f'<form method="get" action="{self.config["PAGE_URL_BASE"]}">'
+        suffix = "." + self.url_suffix if self.url_suffix else ""
+        form = f'<form method="get" action="{self.config["PAGE_URL_BASE"]}{suffix}">'
         file.write(form)
         file.write('<label for="page_input">Přejít na stránku:</label><input name="stranka" id="page_input"></input><input type="submit" value="Přejít" />')
         file.write("</form>")
