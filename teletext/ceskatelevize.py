@@ -279,6 +279,7 @@ class CombinedTeletextClient:
     def get_page(self, page, subpage):
         """Try to retrieve the page both from HbbTV api and web api"""
         web_api_failed = False
+        hbbtv_api_failed = False
         web_api_page = None
         hbbtv_api_page = None
         try:
