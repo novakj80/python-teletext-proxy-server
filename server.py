@@ -63,7 +63,9 @@ class TeletextProxyHandler(http.server.BaseHTTPRequestHandler):
             # it would be better to use a dictionary
             if path == "/favicon.ico":
                 path = "/assets/favicon.ico"
-            elif path == "/" or path.rstrip("/") == CONFIG["PAGE_URL_BASE"].rstrip("/"):
+            elif path == "/": 
+                path = "/menu"
+            elif "stranka" not in query and path.rstrip("/") == CONFIG["PAGE_URL_BASE"].rstrip("/"):
                 path = "/menu"
             
             # Route request
@@ -117,6 +119,8 @@ class TeletextProxyHandler(http.server.BaseHTTPRequestHandler):
         else:
             page, _, suffix = path_components[0].partition(".")
             subpage = 1
+        if "stranka" in query:
+            page = query["stranka"][0]
         
         # Get data 
         try:

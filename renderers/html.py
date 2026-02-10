@@ -28,6 +28,7 @@ class HTMLTemplate:
     def render_body(self, file):
         self.render_page_content(file)
         self.render_navigation(file)
+        self.render_page_input_field(file)
     def render_page_content(self, file):
         if not self.teletext_page:
             file.write("<h1>Stránka nenalezena</h1>")
@@ -52,7 +53,7 @@ class HTMLTemplate:
         if target_subpage:
             href += "/" + str(target_subpage)
         if self.url_suffix:
-            href += "." + "suffix"
+            href += "." + self.url_suffix
         return href
     def render_list_items(self, file, items):
         for link in items:
@@ -65,12 +66,29 @@ class HTMLTemplate:
             if "items" in link:
                 self.render_list_items(file, link["items"])
     def render_navigation(self, file):
+        if not self.teletext_page:
+            return
+        if self.teletext_page.current_sub_page and self.teletext_page.sub_pages_count > 1:
+            if self.teletext_page.current_sub_page > 1:
+                anchor_element = f'<a href={self.page_href(self.teletext_page.current_page, str(min(self.teletext_page.sub_pages_count, self.teletext_page.current_sub_page - 1)))}>Předchozí podstránka</a><br>'
+                file.write(anchor_element)
+            if self.teletext_page.current_sub_page < self.teletext_page.sub_pages_count:
+                anchor_element = f'<a href={self.page_href(self.teletext_page.current_page, str(self.teletext_page.current_sub_page + 1))}>Následující podstránka</a><br>'
+                file.write(anchor_element)
+            file.write("<br>")
+                
+                
         if self.teletext_page.prev_page_link:
             anchor_element = f'<a href={self.page_href(self.teletext_page.prev_page_link.page, "1")}>Předchozí stránka</a><br>'
             file.write(anchor_element)            
         if self.teletext_page.next_page_link:
             anchor_element = f'<a href={self.page_href(self.teletext_page.next_page_link.page, "1")}>Následující stránka</a><br>'
             file.write(anchor_element)
+    def render_page_input_field(self, file):
+        form = f'<form method="get" action="{self.config["PAGE_URL_BASE"]}">'
+        file.write(form)
+        file.write('<label for="page_input">Přejít na stránku:</label><input name="stranka" id="page_input"></input><input type="submit" value="Přejít" />')
+        file.write("</form>")
         
 class HTMLTeletextPageTemplate(HTMLTemplate):
     def render_title(self, file):
