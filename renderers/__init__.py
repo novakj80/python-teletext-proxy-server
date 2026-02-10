@@ -32,5 +32,5 @@ class DocumentRendererABC(metaclass=abc.ABCMeta):
         """
         pass
     
-    def render_teletext_menu(self):
+    def render_teletext_menu(self, page, url_suffix, query, request_headers, config):
         return self.render_teletext_page()

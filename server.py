@@ -103,8 +103,23 @@ class TeletextProxyHandler(http.server.BaseHTTPRequestHandler):
     
         
     def serve_teletext_menu(self, path, query):
-        # Not yet implemented
-        self.send_error(HTTPStatus.NOT_FOUND)
+        try:
+            menu_page = self.server.teletext_client.get_page("100", 1)
+        except teletext.ceskatelevize.FetchError:
+            self.send_error(HTTPStatus.BAD_GATEWAY)
+            return
+        
+        # Choose document renderer
+        _, _, suffix = path.partition(".")
+        parsed_accept_header = parse_quality_header_syntax(self.headers.get("Accept"))
+        document_renderer = self.choose_renderer_plugin(self.headers, suffix, parsed_accept_header)
+        
+        # Render document
+        data, status_code, response_headers = document_renderer.render_teletext_menu(menu_page, suffix, query, self.headers, CONFIG)
+        if type(data) is str:
+            self.send_text_data(data, response_headers, status_code)
+            return
+        self.send_binary_data(data, response_headers, status_code)     
         
     def serve_teletext_page(self, path, query):
         # Parse page and subpage
