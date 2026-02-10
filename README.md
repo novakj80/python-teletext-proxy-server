@@ -20,4 +20,4 @@ Server bude čekat na připojení na adrese ve tvaru: http://adresa_pc:zvolene_c
 ## Dokumentace
 
 * [Uživatelská dokumentace](docs/user.md)
-* [Programátorská dokumentace](docs/programmer.md)
+* [Programmer documentation](docs/programmer.md)
