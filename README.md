@@ -1,21 +1,23 @@
-# Zápočtový program
-
-*Tento soubor vhodně upravte. Text psaný kurzívou označuje instrukce pro vás, před odevzdáním ho smažte.*
+# Server s teletextem České televize nejen pro tlačítkové telefony
 
 ## Specifikace
 
-*Sem napište stručnou specifikaci vašeho programu - co váš program dělá (podobně, jako jste mi psali do mailu). Stačí zhruba 1 odstavec.*
+Program je webovy server napsaný v jazyce Python, který transformuje moderní webový obsah teletextu České televize do podoby, kterou zvládnou i technicky omezené tlačítkové telefony.
+Server načítá data z webového a HbbTV API České televize a kešuje je u sebe. S nimi pak vygeneruje dokument vhodného formátu.
 
-## Instalace a spuštění
+## Spuštění
 
-*Pokud je váš program v Pythonu, stačí upravit JMENO_HLAVNIHO_SOUBORU níže a případně doplnit další informace ke spuštění (jestli má nějaké parametry, vstupní soubory, ...). Pokud je parametrů hodně nebo je potřeba nějaký speciální formát vstupních souborů, nechte tuto sekci jen stručnou a podrobněji to popište v uživatelské dokumentaci (a sem dejte odkaz). Pokud je program v jiném programovacím jazyce, tuto sekci vhodně upravte, abych byl při kontrole schopen nainstalovat si potřebné nástroje a program spustit.*
+1. **Otevření v GUI**: pokud je Python nastavený pro otevírání souborů `.py`, pak stačí dvojklikem poklepat na `server.py`.
 
-Program se spustí příkazem: `python JMENO_HLAVNIHO_SOUBORU.py`
+2. **Příkazová řádka**: program lze spustit příkazem: `python server.py [port]`
+
+Program se doptá na číslo portu, pokud jej nedostane jako parametr z příkazové řádky.
+
+Server bude čekat na připojení na adrese ve tvaru: http://adresa_pc:zvolene_cislp_portu/
+
+**Ukončení**: program lze kdykoli ukončit zavřením konzolového okna nebo pomocí `Ctrl+C`.
 
 ## Dokumentace
 
-*Tady bude rozcestník k dokumentaci k vašemu programu. Pokud je to potřeba, upravte odkazy na soubory s dokumentací. Nebo pokud nepíšete dokumentaci v Markdownu, tak sem napište, kde dokumentaci najdu.*
-
 * [Uživatelská dokumentace](docs/user.md)
-* [Ukázky použití](docs/examples.md)
 * [Programátorská dokumentace](docs/programmer.md)
