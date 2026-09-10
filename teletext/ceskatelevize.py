@@ -239,8 +239,8 @@ class HbbtvApiTeletextClient:
                     return None
             except KeyError:
                 pass
-        expiry = time.time() + self.CACHE_TTL
-        if timestamp and timestamp < expiry:
+        expiry = timestamp + self.CACHE_TTL
+        if time.time() < expiry:
             return teletext_page
         try:
             teletext_page = self._fetch_page(page, subpage)
