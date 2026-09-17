@@ -88,7 +88,7 @@ class WebApiTeletextClient:
                 self.http_last_modified = http_err.headers.get("Last-Modified")
                 return
             else:
-                raise FetchError from e
+                raise FetchError from http_err
         except Exception as e:
             raise FetchError() from e
     
@@ -228,20 +228,25 @@ class HbbtvApiTeletextClient:
         cache_key = CacheKey(page, subpage)
         timestamp = None
         teletext_page = None
+        
+        # Return the page from cache
         try:
             timestamp, teletext_page = self.content_cache[cache_key]
+            expiry = timestamp + self.CACHE_TTL
+            if time.time() < expiry:
+                return teletext_page
         except KeyError:
             pass
-        if timestamp == None:
-            try:
-                error_timestamp, _ = self.error_cache[cache_key]
-                if time.time() < CACHE_TTL + error_timestamp:
-                    return None
-            except KeyError:
-                pass
-        expiry = timestamp + self.CACHE_TTL
-        if time.time() < expiry:
-            return teletext_page
+        
+        # Check for recent error
+        try:
+            error_timestamp, _ = self.error_cache[cache_key]
+            if time.time() < self.CACHE_TTL + error_timestamp:
+                return None
+        except KeyError:
+            pass
+        
+        # Fetch the page from API
         try:
             teletext_page = self._fetch_page(page, subpage)
         except Exception as e:
